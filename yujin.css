@@ -2,5 +2,26 @@ body{
     background-color: rgb(44, 46, 46);
    text-align: center;
    
+
+   
+   
     
 }
+h3{
+    color: rgb(173, 184, 184)
+}
+
+p{
+    color: rgb(173, 184, 184);
+}
+
+img {
+    width: 400px;
+    position: relative;
+    border-radius: 50px;
+   
+   
+
+
+  }
+
