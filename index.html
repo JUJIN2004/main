@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign Language Interpreter (Browser)</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Sign Language Interpreter</h1>
+      <p class="subtitle">Runs in your browser using your camera</p>
+    </header>
+
+    <main class="container">
+      <section class="video-section">
+        <div class="video-wrapper">
+          <video id="video" playsinline autoplay muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
+        <div class="controls">
+          <button id="btnStart">Start Camera</button>
+          <button id="btnStop" disabled>Stop Camera</button>
+          <label class="fps">FPS: <span id="fps">0</span></label>
+        </div>
+      </section>
+
+      <section class="output-section">
+        <div class="interpreted">
+          <h2>Detected Sign</h2>
+          <div id="currentSign" class="current-sign">—</div>
+        </div>
+
+        <div class="sentence">
+          <h2>Sentence</h2>
+          <div id="sentence" class="sentence-text"></div>
+          <div class="sentence-actions">
+            <button id="btnAppend" disabled>Append</button>
+            <button id="btnSpace" disabled>Space</button>
+            <button id="btnBackspace" disabled>Backspace</button>
+            <button id="btnClear" disabled>Clear</button>
+            <button id="btnCopy" disabled>Copy</button>
+          </div>
+        </div>
+
+        <details class="help">
+          <summary>Help: Supported demo signs</summary>
+          <ul>
+            <li>Open palm facing camera → "HELLO"</li>
+            <li>Closed fist → "YES"</li>
+            <li>Index finger up → "NO"</li>
+            <li>Thumbs up → "GOOD"</li>
+          </ul>
+          <p>This is a demo using heuristic rules. For production, use a trained classifier.</p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span>Privacy: All processing stays in your browser.</span>
+    </footer>
+
+    <!-- MediaPipe Tasks Vision ESM loader -->
+    <script type="module">
+      import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17";
+      window.MPTasks = { FilesetResolver, HandLandmarker };
+    </script>
+    <script type="module" src="/main.js"></script>
+  </body>
+  </html>
+
