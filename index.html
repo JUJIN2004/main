@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <title>Sign Interpreter (Demo)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <h1>Sign Interpreter</h1>
+        <p class="subtitle">Realtime hand-tracking demo for numbers 0–5</p>
+      </header>
+
+      <section class="controls">
+        <button id="startBtn" class="btn primary">Enable Camera</button>
+        <label class="toggle">
+          <input id="ttsToggle" type="checkbox" checked />
+          <span>Speak results</span>
+        </label>
+      </section>
+
+      <section class="stage">
+        <div class="video-wrap" id="videoWrap">
+          <video id="webcam" playsinline autoplay muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
+      </section>
+
+      <section class="readout">
+        <div class="status"><span id="status">Idle</span></div>
+        <div class="result">Recognized: <strong id="label">None</strong></div>
+      </section>
+
+      <section class="notes">
+        <p>
+          This prototype recognizes the number of extended fingers (0–5). It is not a
+          full ASL interpreter. Lighting, camera angle, and background affect results.
+        </p>
+      </section>
+
+      <footer class="footer">
+        <span>Built with MediaPipe Hands.</span>
+        <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker" target="_blank" rel="noreferrer">Docs</a>
+      </footer>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+  </html>
