@@ -23,6 +23,8 @@ let lastAppendedLetter = null;
 let drawingUtils = null;
 let videoStream = null;
 let rafId = null;
+let framesSinceLetter = 0;
+const PAUSE_FRAMES_FOR_WORD = 90; // ~1.5 s at 60fps → treat as end of word
 
 class LabelSmoother {
   constructor(windowSize = 8) {
@@ -149,10 +151,31 @@ function startLoop() {
     }
 
     const smooth = smoother.push(label);
-    if (smooth !== undefined && smooth !== null) {
-      updateLabel(smooth);
+    if (smooth !== undefined && smooth !== null && smooth !== "") {
+      const isLetter = /^[A-Za-z]$/.test(String(smooth));
+      if (isLetter) {
+        framesSinceLetter = 0;
+        updateLabel(smooth);
+      } else {
+        updateLabel("—");
+        framesSinceLetter++;
+      }
     } else {
       updateLabel("—");
+      framesSinceLetter++;
+    }
+
+    // After pause with no hand, treat current segment as a word: speak it, then add space
+    if (framesSinceLetter === PAUSE_FRAMES_FOR_WORD && subtitleTranscript.length > 0) {
+      const trimmed = subtitleTranscript.trim();
+      const lastSpace = trimmed.lastIndexOf(" ");
+      const word = lastSpace < 0 ? trimmed : trimmed.slice(lastSpace + 1);
+      if (word.length > 0) {
+        speakWord(word);
+        subtitleTranscript = trimmed + " ";
+        if (subtitleEl) subtitleEl.textContent = subtitleTranscript;
+      }
+      framesSinceLetter = PAUSE_FRAMES_FOR_WORD + 1; // avoid flushing again until next word
     }
 
     rafId = requestAnimationFrame(loop);
@@ -166,28 +189,27 @@ function updateLabel(value) {
   labelEl.dataset.value = `${value}`;
   labelEl.textContent = `${value}`;
 
-  // Append new letter to subtitle when it changes (one letter per sign)
-  const isLetter = value && value.length === 1 && value !== "—";
+  // Append new letter to subtitle when it changes (letters only, never numbers)
+  const isLetter = value && /^[A-Za-z]$/.test(String(value));
   if (isLetter && value !== lastAppendedLetter) {
     lastAppendedLetter = value;
-    subtitleTranscript += value;
+    subtitleTranscript += value.toUpperCase();
     if (subtitleEl) subtitleEl.textContent = subtitleTranscript;
   }
   if (!isLetter) lastAppendedLetter = null;
 
-  if (ttsToggle.checked) {
-    speakValue(value);
-  }
+  // Don't speak letters one-by-one; words are spoken when you pause (see pause handler)
 }
 
-function speakValue(value) {
-  if (!value || value === "—" || value === "None") return;
-  const phrase = value.length === 1 ? value : value;
-  if (lastSpoken === phrase) return;
-  lastSpoken = phrase;
+function speakWord(word) {
+  if (!word || !ttsToggle.checked) return;
+  const w = String(word).toLowerCase().trim();
+  if (!w.length) return;
+  if (lastSpoken === w) return;
+  lastSpoken = w;
   try {
     window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(phrase);
+    const utter = new SpeechSynthesisUtterance(w);
     utter.rate = 0.9;
     utter.pitch = 1.0;
     window.speechSynthesis.speak(utter);

@@ -127,6 +127,7 @@ video, canvas {
 .status { color: var(--muted); }
 .result { font-size: 18px; }
 .result strong { color: var(--success); }
+.result .muted { color: var(--muted); font-weight: 400; font-size: 0.9em; }
 
 .notes { color: var(--muted); margin-top: 10px; }
 .notes p { margin: 0; }
