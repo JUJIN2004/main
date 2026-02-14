@@ -19,6 +19,7 @@
 
       <section class="controls">
         <button id="startBtn" class="btn primary">Enable Camera</button>
+        <button id="switchCameraBtn" class="btn" type="button" title="Switch front/back camera" disabled>Switch camera</button>
         <button id="clearSubsBtn" class="btn" type="button">Clear subtitles</button>
         <button id="backspaceBtn" class="btn" type="button" title="Delete last letter (Backspace)">⌫ Delete letter</button>
         <label class="toggle">
@@ -29,8 +30,10 @@
 
       <section class="stage">
         <div class="video-wrap" id="videoWrap">
-          <video id="webcam" playsinline autoplay muted></video>
-          <canvas id="overlay"></canvas>
+          <div class="video-canvas-wrap" id="videoCanvasWrap">
+            <video id="webcam" playsinline autoplay muted></video>
+            <canvas id="overlay"></canvas>
+          </div>
           <div class="subtitle-bar" aria-live="polite">
             <span id="subtitleText"></span>
           </div>
@@ -46,8 +49,8 @@
         <p>
           Recognizes ASL letters (A–Z) as words. Spell a word with your hand; when you
           pause (lower your hand for about a second), the app speaks the word and starts
-          the next. The video is unmirrored (camera view) so the skeleton and letters stay
-          correct. Use one hand, palm toward the camera. J and Z need motion and may not be detected.
+          the next. Use Switch camera for front or back. Subtitle text is never mirrored.
+          Use one hand, palm toward the camera. J and Z need motion and may not be detected.
         </p>
       </section>
 

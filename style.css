@@ -40,6 +40,7 @@ body {
 
 .controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin: 20px 0 12px;
@@ -81,10 +82,22 @@ body {
   border-radius: 12px;
   background: #0a0f1e;
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-  /* No scaleX(-1): raw camera view so skeleton and letters stay in sync */
 }
 
-video, canvas {
+/* Only video + skeleton mirror (front camera); subtitle stays separate and never mirrored */
+.video-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.video-canvas-wrap.mirror {
+  transform: scaleX(-1);
+}
+
+.video-canvas-wrap video,
+.video-canvas-wrap canvas {
   position: absolute;
   inset: 0;
   width: 100%;

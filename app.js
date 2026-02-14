@@ -17,7 +17,11 @@ const ttsToggle = document.getElementById("ttsToggle");
 const subtitleEl = document.getElementById("subtitleText");
 const clearSubsBtn = document.getElementById("clearSubsBtn");
 const backspaceBtn = document.getElementById("backspaceBtn");
+const switchCameraBtn = document.getElementById("switchCameraBtn");
+const videoCanvasWrap = document.getElementById("videoCanvasWrap");
 
+/** "user" = front, "environment" = back. Front uses mirrored video+skeleton; subtitle never mirrored. */
+let currentFacingMode = "user";
 let handLandmarker = null;
 let subtitleTranscript = "";
 let lastAppendedLetter = null;
@@ -124,11 +128,34 @@ async function ensureModel() {
   drawingUtils = new DrawingUtils(ctx);
 }
 
-async function startCamera() {
-  if (videoStream) return;
+function stopCamera() {
+  if (videoStream) {
+    for (const track of videoStream.getTracks()) track.stop();
+    videoStream = null;
+  }
+  video.srcObject = null;
+}
+
+function updateMirrorClass() {
+  if (videoCanvasWrap) {
+    if (currentFacingMode === "user") {
+      videoCanvasWrap.classList.add("mirror");
+    } else {
+      videoCanvasWrap.classList.remove("mirror");
+    }
+  }
+}
+
+async function startCamera(facingMode = "user") {
+  if (videoStream) {
+    const currentTrack = videoStream.getVideoTracks()[0];
+    const currentFacing = currentTrack?.getSettings?.()?.facingMode;
+    if (currentFacing === facingMode) return;
+    stopCamera();
+  }
   const constraints = {
     audio: false,
-    video: { width: { ideal: 800 }, height: { ideal: 600 }, facingMode: "user" },
+    video: { width: { ideal: 800 }, height: { ideal: 600 }, facingMode },
   };
   videoStream = await navigator.mediaDevices.getUserMedia(constraints);
   video.srcObject = videoStream;
@@ -137,8 +164,28 @@ async function startCamera() {
     if (video.readyState >= 2) return resolve();
     video.onloadedmetadata = () => resolve();
   });
+  currentFacingMode = facingMode;
+  updateMirrorClass();
   sizeCanvasToVideo();
+  if (switchCameraBtn) switchCameraBtn.disabled = false;
 }
+
+switchCameraBtn.addEventListener("click", async () => {
+  if (!videoStream || !handLandmarker) return;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  stopCamera();
+  const nextMode = currentFacingMode === "user" ? "environment" : "user";
+  try {
+    statusEl.textContent = "Switching camera...";
+    await startCamera(nextMode);
+    statusEl.textContent = "Detecting...";
+    startLoop();
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = `Error: ${err.message || err}`;
+  }
+});
 
 function sizeCanvasToVideo() {
   const { videoWidth, videoHeight } = video;
@@ -156,19 +203,26 @@ function startLoop() {
 
     let label = null;
     if (result && result.landmarks && result.landmarks.length > 0) {
-      const landmarks = result.landmarks[0];
-      const handedness = result.handednesses?.[0]?.[0]?.categoryName || null;
+      const rawLandmarks = result.landmarks[0];
+      let handedness = result.handednesses?.[0]?.[0]?.categoryName || null;
 
-      // Draw and recognize with same raw coordinates — no flipping, so skeleton and letters match the camera
+      // Draw with raw landmarks so skeleton aligns with video (video is mirrored via CSS when front)
       try {
-        drawingUtils.drawLandmarks(landmarks, { color: "#22c55e", lineWidth: 2, radius: 2.2 });
-        drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
+        drawingUtils.drawLandmarks(rawLandmarks, { color: "#22c55e", lineWidth: 2, radius: 2.2 });
+        drawingUtils.drawConnectors(rawLandmarks, HandLandmarker.HAND_CONNECTIONS, {
           color: "#38bdf8",
           lineWidth: 2,
         });
       } catch {}
 
-      label = recognizeASLLetter(landmarks, handedness);
+      // For front camera the display is mirrored; flip for recognition so letters match what user sees. Subtitle stays normal.
+      let landmarksForRecognition = rawLandmarks;
+      let handednessForRecognition = handedness;
+      if (currentFacingMode === "user") {
+        landmarksForRecognition = rawLandmarks.map((p) => ({ ...p, x: 1 - p.x }));
+        handednessForRecognition = handedness === "Left" ? "Right" : handedness === "Right" ? "Left" : handedness;
+      }
+      label = recognizeASLLetter(landmarksForRecognition, handednessForRecognition);
     }
 
     const smooth = smoother.push(label);
