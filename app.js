@@ -16,6 +16,10 @@ const labelEl = document.getElementById("label");
 const ttsToggle = document.getElementById("ttsToggle");
 const subtitleEl = document.getElementById("subtitleText");
 const clearSubsBtn = document.getElementById("clearSubsBtn");
+const backspaceBtn = document.getElementById("backspaceBtn");
+
+/** Front camera is mirrored; flip landmarks and handedness so letters match what user sees. */
+const MIRROR_FOR_FRONT_CAMERA = true;
 
 let handLandmarker = null;
 let subtitleTranscript = "";
@@ -66,6 +70,26 @@ clearSubsBtn.addEventListener("click", () => {
   subtitleTranscript = "";
   lastAppendedLetter = null;
   if (subtitleEl) subtitleEl.textContent = "";
+});
+
+function deleteLastLetter() {
+  if (subtitleTranscript.length === 0) return;
+  subtitleTranscript = subtitleTranscript.slice(0, -1);
+  lastAppendedLetter = null;
+  if (subtitleEl) subtitleEl.textContent = subtitleTranscript;
+}
+
+backspaceBtn.addEventListener("click", deleteLastLetter);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Backspace" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const target = e.target;
+    const isInput = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+    if (!isInput) {
+      e.preventDefault();
+      deleteLastLetter();
+    }
+  }
 });
 
 startBtn.addEventListener("click", async () => {
@@ -135,8 +159,13 @@ function startLoop() {
 
     let label = null;
     if (result && result.landmarks && result.landmarks.length > 0) {
-      const landmarks = result.landmarks[0];
-      const handedness = result.handednesses?.[0]?.[0]?.categoryName || null;
+      let landmarks = result.landmarks[0];
+      let handedness = result.handednesses?.[0]?.[0]?.categoryName || null;
+
+      if (MIRROR_FOR_FRONT_CAMERA) {
+        landmarks = landmarks.map((p) => ({ ...p, x: 1 - p.x }));
+        handedness = handedness === "Left" ? "Right" : handedness === "Right" ? "Left" : handedness;
+      }
 
       // Draw landmarks
       try {
@@ -249,7 +278,7 @@ function thumbOut(landmarks, handedness) {
 }
 
 function thumbTouchingIndex(landmarks) {
-  return dist(landmarks[IDX.THUMB_TIP], landmarks[IDX.INDEX_TIP]) < 0.08;
+  return dist(landmarks[IDX.THUMB_TIP], landmarks[IDX.INDEX_TIP]) < 0.10;
 }
 
 function thumbTouchingMiddle(landmarks) {
@@ -281,7 +310,10 @@ function recognizeASLLetter(landmarks, handedness) {
   const idxBent = indexBent(landmarks);
   const extendedCount = [iExt, mExt, rExt, pExt].filter(Boolean).length;
 
-  // A: fist, thumb to side (not extended upward)
+  // O: thumb and index form circle (check before A — both have fingers closed, O has thumb touching index)
+  if (!iExt && !mExt && !rExt && !pExt && thumbTouchIdx) return "O";
+
+  // A: fist, thumb to side (all fingers closed, thumb not touching index)
   if (!iExt && !mExt && !rExt && !pExt && thumbOut_) return "A";
 
   // B: all four fingers up, thumb in
@@ -317,9 +349,6 @@ function recognizeASLLetter(landmarks, handedness) {
 
   // N: thumb under index and middle
   if (!iExt && !mExt && rExt && pExt && !thumbOut_) return "N";
-
-  // O: thumb and fingers form O (thumb touching fingertips)
-  if (!iExt && !mExt && !rExt && !pExt && thumbTouchIdx) return "O";
 
   // R: index and middle crossed (fingers close together)
   if (iExt && mExt && !rExt && !pExt) {
