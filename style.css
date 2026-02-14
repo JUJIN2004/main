@@ -81,7 +81,7 @@ body {
   border-radius: 12px;
   background: #0a0f1e;
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-  transform: scaleX(-1); /* mirror for natural UX */
+  /* No scaleX(-1): raw camera view so skeleton and letters stay in sync */
 }
 
 video, canvas {

@@ -17,12 +17,6 @@ const ttsToggle = document.getElementById("ttsToggle");
 const subtitleEl = document.getElementById("subtitleText");
 const clearSubsBtn = document.getElementById("clearSubsBtn");
 const backspaceBtn = document.getElementById("backspaceBtn");
-const mirrorToggle = document.getElementById("mirrorToggle");
-
-/** Front camera: when "Fix front camera" is on, we flip landmarks and handedness so letters match what you see. Toggle off if letters look wrong. */
-function isMirrorForFrontCamera() {
-  return mirrorToggle ? mirrorToggle.checked : false;
-}
 
 let handLandmarker = null;
 let subtitleTranscript = "";
@@ -162,26 +156,19 @@ function startLoop() {
 
     let label = null;
     if (result && result.landmarks && result.landmarks.length > 0) {
-      const rawLandmarks = result.landmarks[0];
-      let handedness = result.handednesses?.[0]?.[0]?.categoryName || null;
+      const landmarks = result.landmarks[0];
+      const handedness = result.handednesses?.[0]?.[0]?.categoryName || null;
 
-      // Draw with raw landmarks so skeleton aligns with hand (video-wrap CSS mirrors the whole feed)
+      // Draw and recognize with same raw coordinates — no flipping, so skeleton and letters match the camera
       try {
-        drawingUtils.drawLandmarks(rawLandmarks, { color: "#22c55e", lineWidth: 2, radius: 2.2 });
-        drawingUtils.drawConnectors(rawLandmarks, HandLandmarker.HAND_CONNECTIONS, {
+        drawingUtils.drawLandmarks(landmarks, { color: "#22c55e", lineWidth: 2, radius: 2.2 });
+        drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
           color: "#38bdf8",
           lineWidth: 2,
         });
       } catch {}
 
-      // For recognition: optionally mirror so letters match what the user sees (use "Fix front camera" if letters are inverted)
-      let landmarksForRecognition = rawLandmarks;
-      let handednessForRecognition = handedness;
-      if (isMirrorForFrontCamera()) {
-        landmarksForRecognition = rawLandmarks.map((p) => ({ ...p, x: 1 - p.x }));
-        handednessForRecognition = handedness === "Left" ? "Right" : handedness === "Right" ? "Left" : handedness;
-      }
-      label = recognizeASLLetter(landmarksForRecognition, handednessForRecognition);
+      label = recognizeASLLetter(landmarks, handedness);
     }
 
     const smooth = smoother.push(label);
