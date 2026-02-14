@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0ea5e9" />
-    <title>Sign Interpreter (Demo)</title>
+    <title>Sign Language Interpreter</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -13,15 +13,15 @@
   <body>
     <main class="container">
       <header class="header">
-        <h1>Sign Interpreter</h1>
-        <p class="subtitle">Realtime hand-tracking demo for numbers 0–5</p>
+        <h1>Sign Language Interpreter</h1>
+        <p class="subtitle">Spell with the ASL alphabet — show your hand to the camera</p>
       </header>
 
       <section class="controls">
         <button id="startBtn" class="btn primary">Enable Camera</button>
         <label class="toggle">
           <input id="ttsToggle" type="checkbox" checked />
-          <span>Speak results</span>
+          <span>Speak letters</span>
         </label>
       </section>
 
@@ -34,13 +34,14 @@
 
       <section class="readout">
         <div class="status"><span id="status">Idle</span></div>
-        <div class="result">Recognized: <strong id="label">None</strong></div>
+        <div class="result">Letter: <strong id="label">—</strong></div>
       </section>
 
       <section class="notes">
         <p>
-          This prototype recognizes the number of extended fingers (0–5). It is not a
-          full ASL interpreter. Lighting, camera angle, and background affect results.
+          Recognizes ASL letters (A–Z) from your hand shape. Use one hand, palm toward
+          the camera. Lighting and a clear view of your hand improve accuracy. J and Z
+          need motion and may not be detected.
         </p>
       </section>
 

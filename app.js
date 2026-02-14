@@ -1,7 +1,7 @@
 /*
-  Sign Interpreter (Demo)
+  Sign Language Interpreter (ASL)
   - Webcam + MediaPipe HandLandmarker via CDN
-  - Counts extended fingers (0–5) with simple heuristics
+  - Recognizes ASL alphabet letters (A–Z) from hand landmarks
   - Smoothing + optional text-to-speech
 */
 
@@ -53,7 +53,7 @@ class LabelSmoother {
   }
 }
 
-const smoother = new LabelSmoother(10);
+const smoother = new LabelSmoother(12);
 let lastSpoken = null;
 
 startBtn.addEventListener("click", async () => {
@@ -135,15 +135,14 @@ function startLoop() {
         });
       } catch {}
 
-      const count = countExtendedFingers(landmarks, handedness);
-      label = Number.isFinite(count) ? `${count}` : null;
+      label = recognizeASLLetter(landmarks, handedness);
     }
 
     const smooth = smoother.push(label);
     if (smooth !== undefined && smooth !== null) {
       updateLabel(smooth);
     } else {
-      updateLabel("None");
+      updateLabel("—");
     }
 
     rafId = requestAnimationFrame(loop);
@@ -163,85 +162,153 @@ function updateLabel(value) {
 }
 
 function speakValue(value) {
-  const phrase = numberToWords(value);
-  if (!phrase) return;
+  if (!value || value === "—" || value === "None") return;
+  const phrase = value.length === 1 ? value : value;
   if (lastSpoken === phrase) return;
   lastSpoken = phrase;
   try {
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(phrase);
-    utter.rate = 1.0;
+    utter.rate = 0.9;
     utter.pitch = 1.0;
     window.speechSynthesis.speak(utter);
   } catch {}
 }
 
-function numberToWords(val) {
-  const map = {
-    "0": "zero",
-    "1": "one",
-    "2": "two",
-    "3": "three",
-    "4": "four",
-    "5": "five",
-  };
-  return map[String(val)] || null;
+// MediaPipe hand landmark indices
+const IDX = {
+  WRIST: 0, THUMB_CMC: 1, THUMB_MCP: 2, THUMB_IP: 3, THUMB_TIP: 4,
+  INDEX_MCP: 5, INDEX_PIP: 6, INDEX_DIP: 7, INDEX_TIP: 8,
+  MIDDLE_MCP: 9, MIDDLE_PIP: 10, MIDDLE_DIP: 11, MIDDLE_TIP: 12,
+  RING_MCP: 13, RING_PIP: 14, RING_DIP: 15, RING_TIP: 16,
+  PINKY_MCP: 17, PINKY_PIP: 18, PINKY_DIP: 19, PINKY_TIP: 20,
+};
+
+function dist(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y, dz = (a.z || 0) - (b.z || 0);
+  return Math.hypot(dx, dy, dz);
 }
 
-// Heuristic finger counter
-function countExtendedFingers(landmarks, handedness) {
+function isFingerExtended(landmarks, tipIdx, pipIdx) {
+  const tipY = landmarks[tipIdx].y, pipY = landmarks[pipIdx].y;
+  return tipY + 0.03 < pipY;
+}
+
+function isFingerCurled(landmarks, tipIdx, pipIdx) {
+  const tipY = landmarks[tipIdx].y, pipY = landmarks[pipIdx].y;
+  return tipY > pipY + 0.02;
+}
+
+function thumbOut(landmarks, handedness) {
+  const tip = landmarks[IDX.THUMB_TIP], ip = landmarks[IDX.THUMB_IP];
+  const dx = tip.x - ip.x;
+  if (handedness === "Right") return dx < -0.04;
+  if (handedness === "Left") return dx > 0.04;
+  return Math.abs(dx) > 0.08;
+}
+
+function thumbTouchingIndex(landmarks) {
+  return dist(landmarks[IDX.THUMB_TIP], landmarks[IDX.INDEX_TIP]) < 0.08;
+}
+
+function thumbTouchingMiddle(landmarks) {
+  return dist(landmarks[IDX.THUMB_TIP], landmarks[IDX.MIDDLE_TIP]) < 0.1;
+}
+
+function thumbNearIndexPalm(landmarks) {
+  const d = dist(landmarks[IDX.THUMB_TIP], landmarks[IDX.INDEX_MCP]);
+  return d < 0.12;
+}
+
+function indexBent(landmarks) {
+  const tip = landmarks[IDX.INDEX_TIP], pip = landmarks[IDX.INDEX_PIP];
+  return tip.y > pip.y - 0.02;
+}
+
+/** Recognizes ASL letter from hand landmarks (single hand, palm roughly toward camera). */
+function recognizeASLLetter(landmarks, handedness) {
   if (!landmarks || landmarks.length < 21) return null;
 
-  const idx = {
-    WRIST: 0,
-    THUMB_CMC: 1,
-    THUMB_MCP: 2,
-    THUMB_IP: 3,
-    THUMB_TIP: 4,
-    INDEX_MCP: 5,
-    INDEX_PIP: 6,
-    INDEX_DIP: 7,
-    INDEX_TIP: 8,
-    MIDDLE_MCP: 9,
-    MIDDLE_PIP: 10,
-    MIDDLE_DIP: 11,
-    MIDDLE_TIP: 12,
-    RING_MCP: 13,
-    RING_PIP: 14,
-    RING_DIP: 15,
-    RING_TIP: 16,
-    PINKY_MCP: 17,
-    PINKY_PIP: 18,
-    PINKY_DIP: 19,
-    PINKY_TIP: 20,
-  };
+  const iExt = isFingerExtended(landmarks, IDX.INDEX_TIP, IDX.INDEX_PIP);
+  const mExt = isFingerExtended(landmarks, IDX.MIDDLE_TIP, IDX.MIDDLE_PIP);
+  const rExt = isFingerExtended(landmarks, IDX.RING_TIP, IDX.RING_PIP);
+  const pExt = isFingerExtended(landmarks, IDX.PINKY_TIP, IDX.PINKY_PIP);
+  const thumbOut_ = thumbOut(landmarks, handedness);
+  const thumbTouchIdx = thumbTouchingIndex(landmarks);
+  const thumbTouchMid = thumbTouchingMiddle(landmarks);
+  const thumbNearIdx = thumbNearIndexPalm(landmarks);
+  const idxBent = indexBent(landmarks);
+  const extendedCount = [iExt, mExt, rExt, pExt].filter(Boolean).length;
 
-  const isFingerExtended = (tip, pip) => {
-    // y is top=0 bottom=1 in normalized coords; tip above pip => extended
-    const tipY = landmarks[tip].y;
-    const pipY = landmarks[pip].y;
-    return tipY + 0.02 < pipY; // small margin for noise
-  };
+  // A: fist, thumb to side (not extended upward)
+  if (!iExt && !mExt && !rExt && !pExt && thumbOut_) return "A";
 
-  let count = 0;
-  if (isFingerExtended(idx.INDEX_TIP, idx.INDEX_PIP)) count++;
-  if (isFingerExtended(idx.MIDDLE_TIP, idx.MIDDLE_PIP)) count++;
-  if (isFingerExtended(idx.RING_TIP, idx.RING_PIP)) count++;
-  if (isFingerExtended(idx.PINKY_TIP, idx.PINKY_PIP)) count++;
+  // B: all four fingers up, thumb in
+  if (iExt && mExt && rExt && pExt && !thumbOut_) return "B";
 
-  // Thumb: compare x position of tip vs IP depending on handedness
-  const tipX = landmarks[idx.THUMB_TIP].x;
-  const ipX = landmarks[idx.THUMB_IP].x;
-  if (handedness === "Right") {
-    if (tipX + 0.03 < ipX) count++; // thumb points left when extended
-  } else if (handedness === "Left") {
-    if (tipX - 0.03 > ipX) count++; // thumb points right when extended
-  } else {
-    // Fallback if handedness unknown: use absolute delta
-    if (Math.abs(tipX - ipX) > 0.06) count++;
+  // C: curved C – thumb and fingers curved, not fully closed
+  const thumbCurved = !thumbOut_ && dist(landmarks[IDX.THUMB_TIP], landmarks[IDX.INDEX_TIP]) < 0.2;
+  if (extendedCount <= 1 && thumbCurved && !iExt && !pExt) return "C";
+
+  // D: index up, thumb touches middle, others closed
+  if (iExt && !mExt && !rExt && !pExt && thumbTouchMid) return "D";
+
+  // E: fingers curved over thumb (thumb tucked)
+  if (!iExt && !mExt && !rExt && !pExt && !thumbOut_ && thumbNearIdx) return "E";
+
+  // F: OK sign – thumb+index circle, middle/ring/pinky up
+  if (thumbTouchIdx && mExt && rExt && pExt) return "F";
+
+  // G: index pointing, thumb in (gun shape)
+  if (iExt && !mExt && !rExt && !pExt && !thumbTouchMid && !thumbOut_) return "G";
+
+  // I: pinky up, others closed
+  if (!iExt && !mExt && !rExt && pExt && !thumbOut_) return "I";
+
+  // K: thumb between index and middle, V shape
+  if (iExt && mExt && !rExt && !pExt && thumbOut_) return "K";
+
+  // L: index and thumb L
+  if (iExt && !mExt && !rExt && !pExt && thumbOut_) return "L";
+
+  // M: thumb under index/middle/ring (three fingers down)
+  if (!iExt && !mExt && !rExt && pExt && !thumbOut_) return "M";
+
+  // N: thumb under index and middle
+  if (!iExt && !mExt && rExt && pExt && !thumbOut_) return "N";
+
+  // O: thumb and fingers form O (thumb touching fingertips)
+  if (!iExt && !mExt && !rExt && !pExt && thumbTouchIdx) return "O";
+
+  // R: index and middle crossed (fingers close together)
+  if (iExt && mExt && !rExt && !pExt) {
+    const midX = landmarks[IDX.MIDDLE_TIP].x, idxX = landmarks[IDX.INDEX_TIP].x;
+    if (Math.abs(midX - idxX) < 0.05) return "R";
   }
 
-  return count;
+  // S: fist (thumb in front of fingers)
+  if (!iExt && !mExt && !rExt && !pExt && !thumbOut_ && !thumbTouchIdx) return "S";
+
+  // T: thumb between index and middle, fingers closed
+  if (!iExt && !mExt && !rExt && !pExt && thumbOut_ && thumbTouchMid) return "T";
+
+  // U / H: index and middle up together. V: index and middle spread
+  if (iExt && mExt && !rExt && !pExt && !thumbOut_) {
+    const spread = Math.abs(landmarks[IDX.INDEX_TIP].x - landmarks[IDX.MIDDLE_TIP].x);
+    if (spread > 0.05) return "V";
+    return "U";
+  }
+
+  // W: index, middle, ring up (spread)
+  if (iExt && mExt && rExt && !pExt && !thumbOut_) return "W";
+
+  // X: index bent at PIP
+  if (idxBent && !mExt && !rExt && !pExt && !thumbOut_) return "X";
+
+  // Y: thumb and pinky out
+  if (!iExt && !mExt && !rExt && pExt && thumbOut_) return "Y";
+
+  return null;
 }
 
 window.addEventListener("beforeunload", () => {
