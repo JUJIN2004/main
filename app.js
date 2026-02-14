@@ -14,8 +14,12 @@ const startBtn = document.getElementById("startBtn");
 const statusEl = document.getElementById("status");
 const labelEl = document.getElementById("label");
 const ttsToggle = document.getElementById("ttsToggle");
+const subtitleEl = document.getElementById("subtitleText");
+const clearSubsBtn = document.getElementById("clearSubsBtn");
 
 let handLandmarker = null;
+let subtitleTranscript = "";
+let lastAppendedLetter = null;
 let drawingUtils = null;
 let videoStream = null;
 let rafId = null;
@@ -55,6 +59,12 @@ class LabelSmoother {
 
 const smoother = new LabelSmoother(12);
 let lastSpoken = null;
+
+clearSubsBtn.addEventListener("click", () => {
+  subtitleTranscript = "";
+  lastAppendedLetter = null;
+  if (subtitleEl) subtitleEl.textContent = "";
+});
 
 startBtn.addEventListener("click", async () => {
   startBtn.disabled = true;
@@ -155,6 +165,15 @@ function updateLabel(value) {
   if (`${value}` === prev) return;
   labelEl.dataset.value = `${value}`;
   labelEl.textContent = `${value}`;
+
+  // Append new letter to subtitle when it changes (one letter per sign)
+  const isLetter = value && value.length === 1 && value !== "—";
+  if (isLetter && value !== lastAppendedLetter) {
+    lastAppendedLetter = value;
+    subtitleTranscript += value;
+    if (subtitleEl) subtitleEl.textContent = subtitleTranscript;
+  }
+  if (!isLetter) lastAppendedLetter = null;
 
   if (ttsToggle.checked) {
     speakValue(value);

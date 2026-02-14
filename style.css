@@ -93,6 +93,36 @@ video, canvas {
 
 #overlay { pointer-events: none; }
 
+.subtitle-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 20px 18px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  color: #fff;
+  font-size: clamp(18px, 4vw, 26px);
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  min-height: 52px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.subtitle-bar span {
+  display: block;
+  max-width: 100%;
+  word-break: break-all;
+}
+
+.subtitle-bar span:empty {
+  visibility: hidden;
+}
+
 .readout { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .status { color: var(--muted); }
 .result { font-size: 18px; }

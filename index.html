@@ -19,6 +19,7 @@
 
       <section class="controls">
         <button id="startBtn" class="btn primary">Enable Camera</button>
+        <button id="clearSubsBtn" class="btn" type="button">Clear subtitles</button>
         <label class="toggle">
           <input id="ttsToggle" type="checkbox" checked />
           <span>Speak letters</span>
@@ -29,6 +30,9 @@
         <div class="video-wrap" id="videoWrap">
           <video id="webcam" playsinline autoplay muted></video>
           <canvas id="overlay"></canvas>
+          <div class="subtitle-bar" aria-live="polite">
+            <span id="subtitleText"></span>
+          </div>
         </div>
       </section>
 
